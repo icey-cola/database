@@ -1,0 +1,1 @@
+update report set report_result = 1 where report_id = 1;
