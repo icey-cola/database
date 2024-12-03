@@ -14,7 +14,7 @@ compile:
 
 
 
-gcc -o test test.c `pkg-config --cflags --libs gtk+-3.0` `pkg-config --cflags --libs libpq`
+gcc -o test test.c '`pkg-config --cflags --libs gtk+-3.0` `pkg-config --cflags --libs libpq'`
 
 
 run:
