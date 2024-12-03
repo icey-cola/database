@@ -4,8 +4,6 @@ DROP TABLE IF EXISTS Users CASCADE;
 
 DROP TABLE IF EXISTS Report;
 
-DROP TABLE IF EXISTS Admins;
-
 DROP TABLE IF EXISTS Contribute;
 
 DROP TABLE IF EXISTS Comment_to;
@@ -43,6 +41,7 @@ CREATE TABLE Users (
     coin_count INT DEFAULT 100,
     follower_count INT DEFAULT 0,
     video_count INT DEFAULT 0,
+    is_admin BOOLEAN DEFAULT 0,
     pwd VARCHAR(30) check (
         length(pwd) between 8
         and 30
@@ -73,13 +72,6 @@ CREATE TABLE Video (
     is_vip INT
 );
 
-CREATE TABLE Admins(
-    mid SERIAL NOT NULL PRIMARY KEY,
-    pwd VARCHAR(30) check (
-        length(pwd) between 8
-        and 30
-    )
-);
 
 CREATE TABLE Report(
     uid TEXT references Users(uid) ON DELETE CASCADE,
@@ -782,6 +774,21 @@ begin
 return;
 end;
 $$ language plpgsql;
+
+-- 管理员设置视频类别
+CREATE OR REPLACE FUNCTION set_category(
+    IN uid_param TEXT,
+    IN Category_name INT,
+	IN category_param VARCHAR(30)
+) RETURNS VOID AS $$
+BEGIN
+    IF (SELECT is_admin FROM Users WHERE uid = uid_param) = 1 THEN
+        UPDATE Video SET category = category_param WHERE category = Category_name;
+    ELSE
+        RAISE EXCEPTION 'You are not an admin';
+    END IF;
+END; $$
+LANGUAGE plpgsql;
 
 ----周榜
 select* from hotlist(7);

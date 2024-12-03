@@ -1,1 +1,1 @@
-INSERT INTO Users (uid,username,vip,vip_deadline,u_create_date,follow_count,coin_count,follower_count,video_count,pwd) VALUES ( uuid_generate_v4(),'%username%',1,'2024-01-01'::date,'2018-01-01'::date,111,222,333,444,'%password%');
+INSERT INTO Users (username, pwd, is_admin) VALUES ('%username%', '%password%','%is_admin%');
