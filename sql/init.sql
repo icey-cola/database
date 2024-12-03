@@ -466,18 +466,27 @@ AFTER UPDATE OF contribute_result ON Contribute
 FOR EACH ROW
 EXECUTE PROCEDURE contribute_func();
 
+
 -- 创建用户触发器
 CREATE OR REPLACE FUNCTION create_user_func()  RETURNS TRIGGER AS $$
-	DECLARE uid_temp TEXT;
-	BEGIN 
-		SELECT uuid_generate_v4() INTO uid_temp;
-		UPDATE Users SET uid = uid_temp WHERE uid = new.uid;
-		RETURN NULL;
-		END; $$ 
+BEGIN
+    -- 如果新插入的行没有提供 uid，则生成一个新的 UUID
+    IF NEW.uid IS NULL THEN
+        NEW.uid := uuid_generate_v4();
+    END IF;
+    NEW.vip = 0;
+    NEW.vip_deadline = NULL;
+    NEW.coin_count = 100;
+    NEW.video_count = 0;
+    NEW.follower_count = 0;
+    NEW.follow_count = 0;
+    NEW.u_create_date = CURRENT_DATE;
+    RETURN NEW;
+END; $$ 
 LANGUAGE plpgsql;
 
 CREATE TRIGGER create_user_trigger 
-AFTER INSERT ON Users
+BEFORE INSERT ON Users
 FOR EACH ROW
 EXECUTE PROCEDURE create_user_func();
 
