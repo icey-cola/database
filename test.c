@@ -70,7 +70,7 @@ static void on_execute_button_clicked(GtkButton *button, gpointer user_data) {
     GtkTextBuffer *buffer = GTK_TEXT_BUFFER(user_data);
 
     // 从文件中读取 SQL 语句
-    const char *sql_query = read_sql_from_file("./sql/find.sql");
+    const char *sql_query = read_sql_from_file("./sql/init.sql");
     if (sql_query == NULL) {
         gtk_text_buffer_set_text(buffer, "Failed to read SQL file.\n", -1);
         return;
@@ -198,17 +198,33 @@ void replace_placeholder(char *query, const char *placeholder, const char *value
 
     // 将占位符前面的部分复制到结果缓冲区
     strncpy(result, query, before_placeholder_len);
-    // 将替换的值复制到结果缓冲区
-    strncpy(result + before_placeholder_len, value, value_len);
+
+    // 特殊处理 %is_admin% 占位符，移除引号
+    if (strcmp(placeholder, "%is_admin%") == 0) {
+        if (strcmp(value, "TRUE") == 0 || strcmp(value, "FALSE") == 0) {
+            // 插入布尔值，不加引号
+            strncpy(result + before_placeholder_len, value, value_len);
+        } else {
+            // 如果不是布尔值，则仍然插入完整的值
+            strncpy(result + before_placeholder_len, value, value_len);
+        }
+    } else {
+        // 普通占位符替换
+        strncpy(result + before_placeholder_len, value, value_len);
+    }
+
     // 将占位符后面的部分复制到结果缓冲区
     strncpy(result + before_placeholder_len + value_len, pos + strlen(placeholder), after_placeholder_len);
     result[before_placeholder_len + value_len + after_placeholder_len] = '\0';
 }
 
+
 // 回调函数：当点击 createuser 按钮时执行
 static void on_createuser_button_clicked(GtkButton *button, gpointer user_data) {
     GtkWidget *dialog, *vbox, *entry_username, *entry_password, *label_username, *label_password;
     const char *username, *password;
+     GtkWidget *check_admin, *label_admin;
+     gboolean is_admin;
     GtkTextBuffer *buffer = GTK_TEXT_BUFFER(user_data);  // 这里的 buffer 用于输出结果
 
     // 创建一个对话框用于输入用户名和密码
@@ -233,6 +249,10 @@ static void on_createuser_button_clicked(GtkButton *button, gpointer user_data) 
     gtk_entry_set_visibility(GTK_ENTRY(entry_password), FALSE);  // 隐藏密码
     gtk_box_pack_start(GTK_BOX(vbox), entry_password, FALSE, FALSE, 5);
 
+      // Admin Checkbox
+    check_admin = gtk_check_button_new_with_label("Is Admin?");
+    gtk_box_pack_start(GTK_BOX(vbox), check_admin, FALSE, FALSE, 5);
+   ;
     gtk_widget_show_all(dialog);  // 显示对话框
 
     // 等待用户操作
@@ -242,7 +262,8 @@ static void on_createuser_button_clicked(GtkButton *button, gpointer user_data) 
     if (result == GTK_RESPONSE_ACCEPT) {
         username = gtk_entry_get_text(GTK_ENTRY(entry_username));
         password = gtk_entry_get_text(GTK_ENTRY(entry_password));
-
+        is_admin = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_admin));
+        printf("is_admin: %d\n", is_admin);
         // 读取 SQL 文件
         FILE *sql_file = fopen("./sql/createuser.sql", "r");
         if (!sql_file) {
@@ -280,11 +301,11 @@ static void on_createuser_button_clicked(GtkButton *button, gpointer user_data) 
         char modified_sql_query[1024];
         strncpy(modified_sql_query, sql_query, sizeof(modified_sql_query) - 1);
         //printf("%s\n", modified_sql_query);
-      
+        const char *admin_status = is_admin ? "TRUE" : "FALSE";
         // 替换 %username% 和 %password% 占位符
         replace_placeholder(sql_query, "%username%", escaped_username, modified_sql_query, sizeof(modified_sql_query));
         replace_placeholder(modified_sql_query, "%password%", escaped_password, modified_sql_query, sizeof(modified_sql_query));
-
+        replace_placeholder(modified_sql_query, "%is_admin%", admin_status, modified_sql_query, sizeof(modified_sql_query));
         // 打印最终的 SQL 查询
         printf("Modified SQL query: %s\n", modified_sql_query);  
 

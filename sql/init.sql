@@ -41,11 +41,12 @@ CREATE TABLE Users (
     coin_count INT DEFAULT 100,
     follower_count INT DEFAULT 0,
     video_count INT DEFAULT 0,
-    is_admin BOOLEAN DEFAULT 0,
-    pwd VARCHAR(30) check (
-        length(pwd) between 8
-        and 30
-    )
+    is_admin BOOLEAN DEFAULT FALSE,
+     pwd VARCHAR(30) 
+    -- check (
+    --     length(pwd) between 8
+    --     and 30
+    -- )
 );
 
 CREATE TABLE Video_Category(
