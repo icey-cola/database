@@ -13,10 +13,11 @@ static void on_window_destroy(GtkWidget *widget, gpointer data);
 static char* read_sql_from_file(const char *filename);
 static void show_query_result_window(const char *query_result);
 static void on_createuser_button_clicked(GtkButton *button, gpointer user_data);
+static void on_init_button_clicked(GtkButton *button, gpointer user_data);
 void replace_placeholder(char *query, const char *placeholder, const char *value, char *result, size_t result_size);
 int main(int argc, char *argv[]) {
-    GtkWidget *window, *vbox, *button,*button_createuser, *scrolled_window, *text_view;
-    GtkTextBuffer *buffer;
+    GtkWidget *window, *vbox, *button,*button_createuser,*button_init, *scrolled_window, *text_view;
+    GtkTextBuffer *buffer,*buffer_init,*buffer_createuser;
 
     // 初始化 GTK
     gtk_init(&argc, &argv);
@@ -34,16 +35,25 @@ int main(int argc, char *argv[]) {
     gtk_container_add(GTK_CONTAINER(window), vbox);
 
     // 创建一个按钮
-    button = gtk_button_new_with_label("init");
+    button_init = gtk_button_new_with_label("init");
+    gtk_box_pack_start(GTK_BOX(vbox), button_init, FALSE, FALSE, 0);
+    button = gtk_button_new_with_label("find");
     gtk_box_pack_start(GTK_BOX(vbox), button, FALSE, FALSE, 0);
     button_createuser = gtk_button_new_with_label("createuser");
     gtk_box_pack_start(GTK_BOX(vbox), button_createuser, FALSE, FALSE, 0);
+
+     // 创建一个文本视图显示执行结果
+    /*text_view = gtk_text_view_new();
+    gtk_container_add(GTK_CONTAINER(scrolled_window), text_view);
+    buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
+
     // 创建一个文本视图显示执行结果
     scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_box_pack_start(GTK_BOX(vbox), scrolled_window, TRUE, TRUE, 0);
     text_view = gtk_text_view_new();
     gtk_container_add(GTK_CONTAINER(scrolled_window), text_view);
     buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
+    
     // 创建一个文本视图显示执行结果
     GtkWidget  *scrolled_window2, *text_view2;
     GtkTextBuffer *buffer_createuser;
@@ -51,11 +61,18 @@ int main(int argc, char *argv[]) {
     gtk_box_pack_start(GTK_BOX(vbox), scrolled_window2, TRUE, TRUE, 0);
     text_view2 = gtk_text_view_new();
     gtk_container_add(GTK_CONTAINER(scrolled_window2), text_view2);
-    buffer_createuser = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view2));
-
+    buffer_createuser = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view2));*/
+    GtkWidget  *text_view_init;
+    text_view_init = gtk_text_view_new();
+    buffer_init = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view_init));
+    GtkWidget  *text_view_createuser;
+    text_view_createuser = gtk_text_view_new();
+    buffer_createuser = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view_createuser));
     // 连接按钮点击事件
+    g_signal_connect(button_init, "clicked", G_CALLBACK(on_init_button_clicked), buffer_init);
     g_signal_connect(button, "clicked", G_CALLBACK(on_execute_button_clicked), buffer);
     g_signal_connect(button_createuser, "clicked", G_CALLBACK(on_createuser_button_clicked), buffer_createuser);
+
     // 显示所有组件
     gtk_widget_show_all(window);
 
@@ -65,12 +82,12 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-// 执行 SQL 查询的回调函数
+// 执行 find命令
 static void on_execute_button_clicked(GtkButton *button, gpointer user_data) {
     GtkTextBuffer *buffer = GTK_TEXT_BUFFER(user_data);
 
     // 从文件中读取 SQL 语句
-    const char *sql_query = read_sql_from_file("./sql/init.sql");
+    const char *sql_query = read_sql_from_file("./sql/find.sql");
     if (sql_query == NULL) {
         gtk_text_buffer_set_text(buffer, "Failed to read SQL file.\n", -1);
         return;
@@ -121,6 +138,72 @@ static void on_execute_button_clicked(GtkButton *button, gpointer user_data) {
     PQclear(res);
     PQfinish(conn);
 }
+//init
+static void on_init_button_clicked(GtkButton *button, gpointer user_data) {
+    GtkTextBuffer *buffer = GTK_TEXT_BUFFER(user_data);
+
+    // 从文件中读取 SQL 语句
+    const char *sql_query = read_sql_from_file("./sql/init.sql");
+    if (sql_query == NULL) {
+        gtk_text_buffer_set_text(buffer, "Failed to read SQL file.\n", -1);
+        return;
+    }
+
+    // 创建一个 PostgreSQL 连接
+    PGconn *conn = PQconnectdb(CONNECTION_INFO);
+
+    // 检查连接是否成功
+    if (PQstatus(conn) != CONNECTION_OK) {
+        gtk_text_buffer_set_text(buffer, "Connection to database failed.\n", -1);
+        PQfinish(conn);
+        return;
+    }
+
+    // 执行 SQL 查询
+    PGresult *res = PQexec(conn, sql_query);
+
+    // 检查查询是否成功
+    if (PQresultStatus(res) != PGRES_COMMAND_OK && PQresultStatus(res) != PGRES_TUPLES_OK) {
+        gtk_text_buffer_set_text(buffer, "SQL Query failed.\n", -1);
+        gtk_text_buffer_insert_at_cursor(buffer, PQerrorMessage(conn), -1);
+        PQclear(res);
+        PQfinish(conn);
+        
+        // 弹出失败对话框
+        GtkWidget *failure_dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK, "Initialization Failed");
+        gtk_dialog_run(GTK_DIALOG(failure_dialog));
+        gtk_widget_destroy(failure_dialog);
+        return;
+    }
+
+    // 执行成功时弹出成功对话框
+    GtkWidget *success_dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "Initialization Successful");
+    gtk_dialog_run(GTK_DIALOG(success_dialog));
+    gtk_widget_destroy(success_dialog);
+
+    // 获取查询结果并显示
+    
+    /*int nrows = PQntuples(res);  // 获取结果行数
+    int ncols = PQnfields(res);  // 获取列数
+    char result_text[4096] = "";  // 用于存储查询结果的字符串
+
+    for (int i = 0; i < nrows; i++) {
+        for (int j = 0; j < ncols; j++) {
+            const char *value = PQgetvalue(res, i, j);  // 获取每个单元格的值
+            strcat(result_text, value);  // 拼接查询结果
+            strcat(result_text, "\t");  // 列之间添加制表符
+        }
+        strcat(result_text, "\n");  // 每行结束后换行
+    }
+
+    // 显示查询结果
+    show_query_result_window(result_text);*/
+
+    // 清理
+    PQclear(res);
+    PQfinish(conn);
+}
+
 
 // 弹出一个新窗口显示查询结果
 static void show_query_result_window(const char *query_result) {
@@ -222,11 +305,17 @@ void replace_placeholder(char *query, const char *placeholder, const char *value
 // 回调函数：当点击 createuser 按钮时执行
 static void on_createuser_button_clicked(GtkButton *button, gpointer user_data) {
     GtkWidget *dialog, *vbox, *entry_username, *entry_password, *label_username, *label_password;
+    GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     const char *username, *password;
      GtkWidget *check_admin, *label_admin;
      gboolean is_admin;
-    GtkTextBuffer *buffer = GTK_TEXT_BUFFER(user_data);  // 这里的 buffer 用于输出结果
-
+     //printf("userdata: %p\n", user_data);
+     GtkWidget *text_view = gtk_text_view_new();  // 创建一个 GtkTextView
+    GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));  // 获取该 GtkTextView 对应的 GtkTextBuffer
+    gtk_text_buffer_set_text(buffer, "SQL Query failed.\n", -1);
+    //GtkTextBuffer *buffer = GTK_TEXT_BUFFER(user_data);  // 这里的 buffer 用于输出结果
+    //buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
+    
     // 创建一个对话框用于输入用户名和密码
     dialog = gtk_dialog_new_with_buttons("Create User", NULL, GTK_DIALOG_MODAL,
                                         "Cancel", GTK_RESPONSE_CANCEL,
@@ -263,7 +352,7 @@ static void on_createuser_button_clicked(GtkButton *button, gpointer user_data) 
         username = gtk_entry_get_text(GTK_ENTRY(entry_username));
         password = gtk_entry_get_text(GTK_ENTRY(entry_password));
         is_admin = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_admin));
-        printf("is_admin: %d\n", is_admin);
+        //printf("is_admin: %d\n", is_admin);
         // 读取 SQL 文件
         FILE *sql_file = fopen("./sql/createuser.sql", "r");
         if (!sql_file) {
@@ -311,16 +400,39 @@ static void on_createuser_button_clicked(GtkButton *button, gpointer user_data) 
 
         // 执行 SQL 查询
         PGresult *res = PQexec(conn, modified_sql_query);
-
         // 检查执行是否成功
-        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        
+        if (PQresultStatus(res) != PGRES_COMMAND_OK && PQresultStatus(res) != PGRES_TUPLES_OK) {
             gtk_text_buffer_set_text(buffer, "SQL Query failed.\n", -1);
             gtk_text_buffer_insert_at_cursor(buffer, PQerrorMessage(conn), -1);
         } else {
             gtk_text_buffer_set_text(buffer, "User created successfully.\n", -1);
         }
+        gtk_container_add(GTK_CONTAINER(window), text_view);
 
-        // 清理
+        // 强制刷新 text_view
+        gtk_widget_queue_draw(text_view);
+
+        // 显示窗口
+        gtk_widget_show_all(window);
+        /*
+        // 构造查询结果文本
+          int nrows = PQntuples(res);  // 获取结果行数
+        int ncols = PQnfields(res);  // 获取列数
+        char result_text[4096] = "";  // 用于存储查询结果的字符串
+
+        for (int i = 0; i < nrows; i++) {
+            for (int j = 0; j < ncols; j++) {
+                const char *value = PQgetvalue(res, i, j);  // 获取每个单元格的值
+                strcat(result_text, value);  // 拼接查询结果
+                strcat(result_text, "\t");  // 列之间添加制表符
+            }
+            strcat(result_text, "\n");  // 每行结束后换行
+        }
+
+        // 显示查询结果
+        show_query_result_window(result_text);*/
+
         PQclear(res);
         PQfinish(conn);
 
