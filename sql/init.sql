@@ -559,7 +559,6 @@ CREATE OR REPLACE FUNCTION favorite_insert_func()  RETURNS TRIGGER AS $$
 		SELECT username FROM Video WHERE vid = new.vid INTO username_author;
 		SELECT title FROM Video WHERE vid = new.vid INTO title_video;
 		INSERT INTO Notices(uid, username, notice_date, notice_category, notice_content)
-		-- VALUES((SELECT uid FROM Video WHERE vid = new.vid), (SELECT username FROM Video WHERE vid = new.vid), DEFAULT, 4, "您的视频被收藏"format('您的视频%s被%s收藏','你好','中国'););
 		VALUES(uid_author, username_author, DEFAULT, 4, format('您的视频%s被%s收藏',title_video,(SELECT username FROM Users WHERE uid = new.uid)));
 		RETURN NULL;
 	END; $$ 
@@ -590,16 +589,17 @@ FOR EACH ROW
 EXECUTE PROCEDURE favorite_delete_func();
 
 --  举报处理结果触发器 如果举报成功，删除视频或评论，给举报人、被举报人发通知；否则给举报人发通知
+
 CREATE OR REPLACE FUNCTION report_update_func() RETURNS TRIGGER AS $$
 	BEGIN
-		IF new.report_result = '1' then
-			if new.report_category = '0' then				
+		IF new.report_result = '通过' then
+			if new.report_category = '评论' then				
 				INSERT INTO notices(uid, username, notice_date, notice_category, notice_content)
 				VALUES((select uid FROM Comment_to WHERE thread = new.report_thread), (select username FROM Comment_to WHERE vid = new.report_vid), DEFAULT, 6, format('您的评论%s因举报删除', (SELECT comment_content FROM Comment_to WHERE thread=new.report_thread)));
 			
 				DELETE FROM Comment_to 
 				WHERE Comment_to.vid = new.report_vid and Comment_to.thread = new.report_thread;
-			ELSEIF new.report_category = '1' then				
+			ELSEIF new.report_category = '视频' then				
 				INSERT INTO notices(uid, username, notice_date, notice_category, notice_content)
 				VALUES((select uid FROM Video WHERE vid = new.report_vid), (select username FROM Video WHERE vid = new.report_vid), DEFAULT, 6, format('您的视频%s因举报删除', (SELECT title FROM Video WHERE vid = new.report_vid)));
 			
@@ -610,10 +610,11 @@ CREATE OR REPLACE FUNCTION report_update_func() RETURNS TRIGGER AS $$
 			INSERT INTO notices(uid, username, notice_date, notice_category, notice_content)
 			VALUES(new.uid,(select username FROM Users WHERE uid = new.uid), DEFAULT, 1, format('您的举报%s成功',new.report_id));
 			
-		ELSE 
+		ELSE
 			INSERT INTO notices(uid, username, notice_date, notice_category, notice_content)
 			VALUES(new.uid, (select username FROM Users WHERE uid = new.uid), DEFAULT, 1, format('您的举报%s失败',new.report_id));
 		END IF;
+        DELETE FROM Report WHERE report_id = new.report_id;
 		RETURN NULL;
 	END; $$
 LANGUAGE plpgsql;
@@ -623,7 +624,6 @@ AFTER UPDATE OF report_result ON Report
 FOR EACH ROW
 EXECUTE PROCEDURE report_update_func();
 
-drop trigger if exists report_update_triger on Report;
 
 
 -- 评论insert触发器 给up主发通知，并增加视频的评论数
