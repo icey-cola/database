@@ -18,7 +18,7 @@ void replace_placeholder(char *query, const char *placeholder, const char *value
 int main(int argc, char *argv[]) {
     GtkWidget *window, *vbox, *button,*button_createuser,*button_init, *scrolled_window, *text_view;
     GtkTextBuffer *buffer,*buffer_init,*buffer_createuser;
-
+     GtkWidget *button1,*button2,*button3,*button4,*button5,*button6,*button7;
     // 初始化 GTK
     gtk_init(&argc, &argv);
 
@@ -41,6 +41,21 @@ int main(int argc, char *argv[]) {
     gtk_box_pack_start(GTK_BOX(vbox), button, FALSE, FALSE, 0);
     button_createuser = gtk_button_new_with_label("createuser");
     gtk_box_pack_start(GTK_BOX(vbox), button_createuser, FALSE, FALSE, 0);
+    button1 = gtk_button_new_with_label("history");
+    gtk_box_pack_start(GTK_BOX(vbox), button1, FALSE, FALSE, 0);
+    button2 = gtk_button_new_with_label("subscribe");
+    gtk_box_pack_start(GTK_BOX(vbox), button2, FALSE, FALSE, 0);
+    button3 = gtk_button_new_with_label("membership");
+    gtk_box_pack_start(GTK_BOX(vbox), button3, FALSE, FALSE, 0);
+    button4 = gtk_button_new_with_label("Report_video");
+    gtk_box_pack_start(GTK_BOX(vbox), button4, FALSE, FALSE, 0);
+    button5 = gtk_button_new_with_label("upload_video");
+    gtk_box_pack_start(GTK_BOX(vbox), button5, FALSE, FALSE, 0);
+    button6 = gtk_button_new_with_label("review");
+    gtk_box_pack_start(GTK_BOX(vbox), button6, FALSE, FALSE, 0);
+    button7 = gtk_button_new_with_label("look for video");
+    gtk_box_pack_start(GTK_BOX(vbox), button7, FALSE, FALSE, 0);
+
 
      // 创建一个文本视图显示执行结果
     /*text_view = gtk_text_view_new();
